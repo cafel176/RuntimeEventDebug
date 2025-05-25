@@ -85,6 +85,58 @@ Input.keyMapper[121] = "load";
 // ============================================================================= //
 // 对所有的事件页进行处理，将其中的注释转化为对应的事件
 // ============================================================================= //
+
+// 将注释转化为对应的事件
+var RuntimeEventDebug_setupEvents = function (list) {
+    for (let index = list.length - 1; index >= 0; --index) {
+        // 禁用
+        if (RuntimeEventDebug.paraminfo.breakPoint.value == RuntimeEventDebug.paraminfo.breakPoint.never)
+            continue;
+
+        // 仅注释处
+        else if (RuntimeEventDebug.paraminfo.breakPoint.value == RuntimeEventDebug.paraminfo.breakPoint.onlyDesc) {
+            // 当前事件是否是注释
+            if (list[index].code === 108) {
+                let Str = list[index].parameters[0]
+                // 检查当前注释是否是指定标记开头
+                let arr = RuntimeEventDebug_processToken(Str)
+                if (arr[0]) {
+                    // 将注释转化为存档事件以供后续处理
+                    list[index].code = 352
+                }
+            }
+        }
+    }
+    return list;
+}
+
+// 某些事件不需要或者不能添加存档断点
+var RuntimeEventDebug_IfSkipEvent = function (code) {
+    const codeList = [
+        0, // 空白事件
+        401, // 文本 - 文本
+        108, // 注释
+        352 // 打开存档画面
+    ]
+    return codeList.includes(code)
+}
+
+// 对注释文本进行处理
+var RuntimeEventDebug_processToken = function (Token) {
+    // 以指定标记开头，一般格式为“断点#任意字符”
+    if (Token.startsWith(RuntimeEventDebug.string.breakPoint)) {
+        let arr = Token.split("#")
+        if (arr.length === 2 && arr[0] === RuntimeEventDebug.string.breakPoint) {
+            return [true, arr[1]]
+        }
+    }
+    return [false, ""]
+}
+
+// ============================================================================= //
+// 接入DataManager
+// ============================================================================= //
+
 var RuntimeEventDebug_DataManager_loadDataFile = DataManager.loadDataFile;
 DataManager.loadDataFile = function (name, src) {
     if (Utils.RPGMAKER_NAME === 'MV') {
@@ -104,15 +156,15 @@ DataManager.loadDataFile = function (name, src) {
     else if (Utils.RPGMAKER_NAME === 'MZ') {
         RuntimeEventDebug_DataManager_loadDataFile.call(this, name, src);
     }
-};
+}
 
 // 加载的是$dataMap
-var loadDataMap = false
+var RuntimeEventDebug_loadDataMap = false
 var RuntimeEventDebug_DataManager_onXhrLoad = DataManager.onXhrLoad;
 DataManager.onXhrLoad = function (xhr, name, src, url) {
     // 对$dataMap做标记处理
     if (name == "$dataMap") {
-        loadDataMap = true;
+        RuntimeEventDebug_loadDataMap = true;
     }
     if (Utils.RPGMAKER_NAME === 'MV') {
         // MV的xhr.onload
@@ -124,21 +176,21 @@ DataManager.onXhrLoad = function (xhr, name, src, url) {
     else if (Utils.RPGMAKER_NAME === 'MZ') {
         RuntimeEventDebug_DataManager_onXhrLoad.call(this, xhr, name, src, url);
     }
-};
+}
 
 // 读档时根据文件进行数据更新
 var RuntimeEventDebug_DataManager_onLoad = DataManager.onLoad;
 DataManager.onLoad = function (object) {
     RuntimeEventDebug_DataManager_onLoad.call(this, object);
 
-    if (loadDataMap) {
+    if (RuntimeEventDebug_loadDataMap) {
         // 对用于数据的事件全部进行注释处理
         for (let i = $dataMap.events.length - 1; i >= 0; --i) {
             if (!$dataMap.events[i])
                 continue;
 
             for (let j = $dataMap.events[i].pages.length - 1; j >= 0; --j) {
-                this.debug_setupEvents($dataMap.events[i].pages[j].list);
+                RuntimeEventDebug_setupEvents($dataMap.events[i].pages[j].list);
             }
         }
 
@@ -160,7 +212,7 @@ DataManager.onLoad = function (object) {
                     if (checkEvent.code === 352 && checkEvent.parameters.length > 0) {
                         let checkStr = checkEvent.parameters[0]
                         // 检查当前注释是否是指定标记开头
-                        let checkArr = this.debug_processToken(checkStr)
+                        let checkArr = RuntimeEventDebug_processToken(checkStr)
                         // 是注释断点，允许载入
                         if (checkArr[0]) {
                             // 对该事件的每一页遍历
@@ -175,7 +227,7 @@ DataManager.onLoad = function (object) {
                                     if (itrEvent.code === 352 && itrEvent.parameters.length > 0) {
                                         let itrStr = itrEvent.parameters[0]
                                         // 检查当前注释是否是指定标记开头
-                                        let itrArr = this.debug_processToken(itrStr)
+                                        let itrArr = RuntimeEventDebug_processToken(itrStr)
                                         // 是注释断点，允许载入
                                         if (itrArr[0]) {
                                             // 注释对得上
@@ -200,57 +252,10 @@ DataManager.onLoad = function (object) {
             }
         }
 
-        loadDataMap = false;
+        RuntimeEventDebug_loadDataMap = false;
     }
 
-};
-
-// 将注释转化为对应的事件
-DataManager.debug_setupEvents = function (list) {
-    for (let index = list.length - 1; index >= 0; --index) {
-        // 禁用
-        if (RuntimeEventDebug.paraminfo.breakPoint.value == RuntimeEventDebug.paraminfo.breakPoint.never)
-            continue;
-
-        // 仅注释处
-        else if (RuntimeEventDebug.paraminfo.breakPoint.value == RuntimeEventDebug.paraminfo.breakPoint.onlyDesc) {
-            // 当前事件是否是注释
-            if (list[index].code === 108) {
-                let Str = list[index].parameters[0]
-                // 检查当前注释是否是指定标记开头
-                let arr = this.debug_processToken(Str)
-                if (arr[0]) {
-                    // 将注释转化为存档事件以供后续处理
-                    list[index].code = 352
-                }
-            }
-        }
-    }
-    return list;
-};
-
-// 某些事件不需要或者不能添加存档断点
-DataManager.debug_IfSkipEvent = function (code) {
-    const codeList = [
-        0, // 空白事件
-        401, // 文本 - 文本
-        108, // 注释
-        352 // 打开存档画面
-    ]
-    return codeList.includes(code)
-};
-
-// 对注释文本进行处理
-DataManager.debug_processToken = function (Token) {
-    // 以指定标记开头，一般格式为“断点#任意字符”
-    if (Token.startsWith(RuntimeEventDebug.string.breakPoint)) {
-        let arr = Token.split("#")
-        if (arr.length === 2 && arr[0] === RuntimeEventDebug.string.breakPoint) {
-            return [true, arr[1]]
-        }
-    }
-    return [false, ""]
-};
+}
 
 // ============================================================================= //
 // 读档修改
@@ -264,4 +269,4 @@ Scene_Map.prototype.update = function () {
             SceneManager.push(Scene_Load);
         }
     }
-};
+}
