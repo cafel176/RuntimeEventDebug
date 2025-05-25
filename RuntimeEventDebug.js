@@ -195,56 +195,56 @@ DataManager.onLoad = function (object) {
         }
 
         // 不触发事件的时候也要更新
-        if ($gameMap) {
+        if ($gameMap && $gameMap._mapId > 0) {
             $gameMap.setupEvents()
-        }
 
-        // 读档后需要更新$gameMap以处理存档时正在执行事件的情况
-        if ($gameMap._interpreter._list) {
-            // 找到存档时正在触发的事件ID
-            const eventId = $gameMap._interpreter._eventId
-            // 当前场景中仍存在该事件
-            if (eventId >= 0 && eventId < $dataMap.events.length) {
-                if ($gameMap._interpreter._index > 0) {
-                    // 找到存档时正在执行的事件项
-                    const checkEvent = $gameMap._interpreter._list[$gameMap._interpreter._index - 1]
-                    // 当前事件是否是注释断点
-                    if (checkEvent.code === 352 && checkEvent.parameters.length > 0) {
-                        let checkStr = checkEvent.parameters[0]
-                        // 检查当前注释是否是指定标记开头
-                        let checkArr = RuntimeEventDebug_processToken(checkStr)
-                        // 是注释断点，允许载入
-                        if (checkArr[0]) {
-                            // 对该事件的每一页遍历
-                            let find = false
-                            for (let i = 0; i < $dataMap.events[eventId].pages.length; ++i) {
-                                for (let j = 0; j < $dataMap.events[eventId].pages[i].list.length; ++j) {
-                                    const itrEvent = $dataMap.events[eventId].pages[i].list[j]
-                                    if (!itrEvent)
-                                        continue;
+            // 读档后需要更新$gameMap以处理存档时正在执行事件的情况
+            if ($gameMap._interpreter._list) {
+                // 找到存档时正在触发的事件ID
+                const eventId = $gameMap._interpreter._eventId
+                // 当前场景中仍存在该事件
+                if (eventId >= 0 && eventId < $dataMap.events.length) {
+                    if ($gameMap._interpreter._index > 0) {
+                        // 找到存档时正在执行的事件项
+                        const checkEvent = $gameMap._interpreter._list[$gameMap._interpreter._index - 1]
+                        // 当前事件是否是注释断点
+                        if (checkEvent.code === 352 && checkEvent.parameters.length > 0) {
+                            let checkStr = checkEvent.parameters[0]
+                            // 检查当前注释是否是指定标记开头
+                            let checkArr = RuntimeEventDebug_processToken(checkStr)
+                            // 是注释断点，允许载入
+                            if (checkArr[0]) {
+                                // 对该事件的每一页遍历
+                                let find = false
+                                for (let i = 0; i < $dataMap.events[eventId].pages.length; ++i) {
+                                    for (let j = 0; j < $dataMap.events[eventId].pages[i].list.length; ++j) {
+                                        const itrEvent = $dataMap.events[eventId].pages[i].list[j]
+                                        if (!itrEvent)
+                                            continue;
 
-                                    // 当前事件是否是注释
-                                    if (itrEvent.code === 352 && itrEvent.parameters.length > 0) {
-                                        let itrStr = itrEvent.parameters[0]
-                                        // 检查当前注释是否是指定标记开头
-                                        let itrArr = RuntimeEventDebug_processToken(itrStr)
-                                        // 是注释断点，允许载入
-                                        if (itrArr[0]) {
-                                            // 注释对得上
-                                            if (checkArr[1] === itrArr[1]) {
-                                                if ($gameMap._interpreter._list) {
-                                                    $gameMap._interpreter._list = $dataMap.events[eventId].pages[i].list
-                                                    $gameMap._interpreter._index = j + 1
+                                        // 当前事件是否是注释
+                                        if (itrEvent.code === 352 && itrEvent.parameters.length > 0) {
+                                            let itrStr = itrEvent.parameters[0]
+                                            // 检查当前注释是否是指定标记开头
+                                            let itrArr = RuntimeEventDebug_processToken(itrStr)
+                                            // 是注释断点，允许载入
+                                            if (itrArr[0]) {
+                                                // 注释对得上
+                                                if (checkArr[1] === itrArr[1]) {
+                                                    if ($gameMap._interpreter._list) {
+                                                        $gameMap._interpreter._list = $dataMap.events[eventId].pages[i].list
+                                                        $gameMap._interpreter._index = j + 1
+                                                    }
+
+                                                    find = true
+                                                    break
                                                 }
-
-                                                find = true
-                                                break
                                             }
                                         }
                                     }
+                                    if (find)
+                                        break
                                 }
-                                if (find)
-                                    break
                             }
                         }
                     }
